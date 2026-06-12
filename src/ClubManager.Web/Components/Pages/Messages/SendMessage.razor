@@ -1,0 +1,106 @@
+@page "/messages/send"
+@attribute [Authorize(Roles = "Admin,ClubManager")]
+@inject MessageService MsgSvc
+@inject ClubService ClubSvc
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Nová zpráva</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Nová zpráva</MudText>
+
+<MudPaper Class="pa-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="int?" Label="Organizace" @bind-Value="_orgId" Required="true">
+                @foreach (var o in _orgs)
+                {
+                    <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="int?" Label="Oddíl (volitelné)" @bind-Value="_clubId">
+                <MudSelectItem Value="(int?)null">— celá organizace —</MudSelectItem>
+                @foreach (var c in _clubs)
+                {
+                    <MudSelectItem Value="(int?)c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="ClubManager.Models.MessageType" Label="Typ" @bind-Value="_type">
+                <MudSelectItem Value="ClubManager.Models.MessageType.General">Obecné</MudSelectItem>
+                <MudSelectItem Value="ClubManager.Models.MessageType.Reminder">Připomínka</MudSelectItem>
+                <MudSelectItem Value="ClubManager.Models.MessageType.Debt">Nedoplatek</MudSelectItem>
+                <MudSelectItem Value="ClubManager.Models.MessageType.Event">Událost</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField Label="Předmět" @bind-Value="_subject" Required="true" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField Label="Zpráva" @bind-Value="_body" Lines="6" Required="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudCheckBox @bind-Value="_sendEmail" Label="Odeslat emailem" />
+            <MudCheckBox @bind-Value="_sendNtfy" Label="Odeslat přes ntfy" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Primary" OnClick="SendAsync" Disabled="_sending">
+                @if (_sending) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                Odeslat
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    int? _orgId, _clubId;
+    string _subject = "", _body = "";
+    bool _sendEmail = true, _sendNtfy = false, _sending;
+    ClubManager.Models.MessageType _type = ClubManager.Models.MessageType.General;
+    List<ClubManager.Models.Organization> _orgs = [];
+    List<ClubManager.Models.Club> _clubs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    async Task SendAsync()
+    {
+        if (_orgId is null || string.IsNullOrWhiteSpace(_subject) || string.IsNullOrWhiteSpace(_body))
+        {
+            Snackbar.Add("Vyplňte organizaci, předmět a text zprávy.", MudBlazor.Severity.Warning);
+            return;
+        }
+        _sending = true;
+        try
+        {
+            var members = await ClubSvc.GetMembersAsync(_orgId.Value, _clubId);
+            var userIds = members.Select(m => m.UserId).Distinct().ToList();
+
+            var msg = await MsgSvc.CreateDraftAsync(new ClubManager.Models.Message
+            {
+                OrganizationId = _orgId.Value,
+                ClubId = _clubId,
+                SenderUserId = "system",
+                Subject = _subject,
+                Body = _body,
+                Type = _type,
+                SendEmail = _sendEmail,
+                SendNtfy = _sendNtfy
+            });
+
+            await MsgSvc.SendMessageAsync(msg.Id, userIds);
+            Snackbar.Add($"Zpráva odeslána {userIds.Count} příjemcům.", MudBlazor.Severity.Success);
+            Nav.NavigateTo("/messages");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Chyba: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally { _sending = false; }
+    }
+}

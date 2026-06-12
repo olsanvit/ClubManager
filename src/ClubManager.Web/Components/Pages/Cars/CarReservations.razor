@@ -1,0 +1,142 @@
+@page "/cars/reservations"
+@attribute [Authorize]
+@inject CarReservationService CarSvc
+@inject ClubService ClubSvc
+@inject ISnackbar Snackbar
+
+<PageTitle>Rezervace aut</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Rezervace aut</MudText>
+
+@if (_orgId is null)
+{
+    <MudSelect T="int?" Label="Vyberte organizaci" @bind-Value="_orgId" Class="mb-4">
+        @foreach (var o in _orgs)
+        {
+            <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+        }
+    </MudSelect>
+}
+else
+{
+    <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Primary" Class="mb-4"
+               OnClick="() => _showForm = !_showForm">
+        Nová rezervace
+    </MudButton>
+
+    @if (_showForm)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" Label="Auto" @bind-Value="_newRes.CarId">
+                        @foreach (var c in _cars)
+                        {
+                            <MudSelectItem Value="c.Id">@c.Name (@c.LicensePlate)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker Label="Od" @bind-Date="_dateFrom" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker Label="Do" @bind-Date="_dateTo" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Účel" @bind-Value="_newRes.Purpose" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Success" OnClick="CreateReservationAsync">Rezervovat</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+
+    @if (_reservations is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudTable Items="_reservations" Hover="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Auto</MudTh>
+                <MudTh>Uživatel</MudTh>
+                <MudTh>Od</MudTh>
+                <MudTh>Do</MudTh>
+                <MudTh>Dny</MudTh>
+                <MudTh>Km</MudTh>
+                <MudTh>Stav</MudTh>
+                <MudTh>Účel</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Car.Name</MudTd>
+                <MudTd>@(context.User.Email ?? context.User.UserName)</MudTd>
+                <MudTd>@context.DateFrom.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>@context.DateTo.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd>@context.DaysDriven</MudTd>
+                <MudTd>@(context.KmDriven.HasValue ? $"{context.KmDriven:N0} km" : "—")</MudTd>
+                <MudTd><MudChip T="string" Color="StatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip></MudTd>
+                <MudTd>@context.Purpose</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery] int? CarId { get; set; }
+
+    int? _orgId;
+    bool _showForm;
+    DateTime? _dateFrom, _dateTo;
+    List<ClubManager.Models.Organization> _orgs = [];
+    List<ClubManager.Models.Car> _cars = [];
+    List<ClubManager.Models.CarReservation>? _reservations;
+    ClubManager.Models.CarReservation _newRes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_orgId.HasValue)
+        {
+            _cars = await CarSvc.GetCarsAsync(_orgId.Value);
+            _reservations = await CarSvc.GetReservationsAsync(_orgId.Value);
+        }
+    }
+
+    async Task CreateReservationAsync()
+    {
+        if (_newRes.CarId == 0 || _dateFrom is null || _dateTo is null)
+        {
+            Snackbar.Add("Vyplňte auto a termín.", MudBlazor.Severity.Warning);
+            return;
+        }
+        _newRes.DateFrom = _dateFrom.Value;
+        _newRes.DateTo = _dateTo.Value;
+        try
+        {
+            await CarSvc.CreateAsync(_newRes);
+            Snackbar.Add("Rezervace vytvořena.", MudBlazor.Severity.Success);
+            _newRes = new();
+            _showForm = false;
+            _reservations = await CarSvc.GetReservationsAsync(_orgId!.Value);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, MudBlazor.Severity.Error);
+        }
+    }
+
+    static Color StatusColor(ClubManager.Models.ReservationStatus s) => s switch
+    {
+        ClubManager.Models.ReservationStatus.Approved => Color.Success,
+        ClubManager.Models.ReservationStatus.Completed => Color.Info,
+        ClubManager.Models.ReservationStatus.Rejected => Color.Error,
+        ClubManager.Models.ReservationStatus.Cancelled => Color.Warning,
+        _ => Color.Default
+    };
+}

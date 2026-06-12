@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ClubManager.Web/ClubManager.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/SharedServices/">
+    <Project Path="src/SharedServices/SharedServices/SharedServices.csproj" />
+  </Folder>
+</Solution>

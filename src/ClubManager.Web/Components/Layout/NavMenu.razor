@@ -1,0 +1,25 @@
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Přehled</MudNavLink>
+
+    <MudNavGroup Title="Správa oddílů" Icon="@Icons.Material.Filled.Groups" Expanded="true">
+        <MudNavLink Href="/organizations" Icon="@Icons.Material.Filled.Business">Organizace</MudNavLink>
+        <MudNavLink Href="/clubs" Icon="@Icons.Material.Filled.SportsSoccer">Oddíly</MudNavLink>
+        <MudNavLink Href="/members" Icon="@Icons.Material.Filled.Person">Členové</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Zprávy" Icon="@Icons.Material.Filled.Message" Expanded="true">
+        <MudNavLink Href="/messages" Icon="@Icons.Material.Filled.Inbox">Přijaté</MudNavLink>
+        <MudNavLink Href="/messages/send" Icon="@Icons.Material.Filled.Send">Nová zpráva</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Auta" Icon="@Icons.Material.Filled.DirectionsCar" Expanded="true">
+        <MudNavLink Href="/cars" Icon="@Icons.Material.Filled.List">Přehled aut</MudNavLink>
+        <MudNavLink Href="/cars/reservations" Icon="@Icons.Material.Filled.CalendarMonth">Rezervace</MudNavLink>
+    </MudNavGroup>
+
+    <AuthorizeView Roles="Admin">
+        <MudNavGroup Title="Administrace" Icon="@Icons.Material.Filled.AdminPanelSettings">
+            <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.ManageAccounts">Uživatelé</MudNavLink>
+        </MudNavGroup>
+    </AuthorizeView>
+</MudNavMenu>

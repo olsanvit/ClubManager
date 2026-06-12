@@ -1,0 +1,7 @@
+html, body {
+    font-family: 'Roboto', sans-serif;
+}
+
+.mud-table-container {
+    overflow-x: auto;
+}

@@ -1,0 +1,38 @@
+version: '3.9'
+services:
+  app:
+    build: .
+    container_name: clubmanager
+    ports: ["8080:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=ClubManager;Username=postgres;Password=${POSTGRES_PASSWORD:-changeme}"
+      Smtp__Host: "${SMTP_HOST:-smtp.gmail.com}"
+      Smtp__Port: "${SMTP_PORT:-587}"
+      Smtp__User: "${SMTP_USER:-}"
+      Smtp__Password: "${SMTP_PASSWORD:-}"
+      Smtp__From: "${SMTP_FROM:-noreply@clubmanager.cz}"
+      Ntfy__BaseUrl: "${NTFY_URL:-https://ntfy.vo2info.cz}"
+      Ntfy__Auth: "${NTFY_AUTH:-}"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: clubmanager-db
+    environment:
+      POSTGRES_DB: ClubManager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - clubmanager_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ClubManager"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  clubmanager_data:

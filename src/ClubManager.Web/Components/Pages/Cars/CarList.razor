@@ -1,0 +1,61 @@
+@page "/cars"
+@attribute [Authorize]
+@inject CarReservationService CarSvc
+@inject ClubService ClubSvc
+
+<PageTitle>Auta</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Auta</MudText>
+
+@if (!_orgId.HasValue)
+{
+    <MudSelect T="int?" Label="Vyberte organizaci" Value="_orgId" ValueChanged="OnOrgChanged" Class="mb-4">
+        @foreach (var o in _orgs)
+        {
+            <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+        }
+    </MudSelect>
+}
+else if (_cars is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_cars" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Název</MudTh>
+            <MudTh>SPZ</MudTh>
+            <MudTh>Značka / Model</MudTh>
+            <MudTh>Rok</MudTh>
+            <MudTh>Akce</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.LicensePlate</MudTd>
+            <MudTd>@context.Brand @context.Model</MudTd>
+            <MudTd>@context.Year</MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small" Variant="MudBlazor.Variant.Outlined" Href="@($"/cars/reservations?carId={context.Id}")">Rezervace</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    int? _orgId;
+    List<ClubManager.Models.Organization> _orgs = [];
+    List<ClubManager.Models.Car>? _cars;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    async Task OnOrgChanged(int? id)
+    {
+        _orgId = id;
+        if (_orgId.HasValue)
+            _cars = await CarSvc.GetCarsAsync(_orgId.Value);
+    }
+}

@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);NU1903;NU1900;NU1301</NoWarn>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+</Project>

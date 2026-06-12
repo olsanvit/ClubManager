@@ -1,0 +1,40 @@
+@page "/organizations"
+@attribute [Authorize]
+@inject ClubService ClubSvc
+
+<PageTitle>Organizace</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Organizace</MudText>
+
+@if (_orgs is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_orgs" Hover="true" Striped="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Název</MudTh>
+            <MudTh>Popis</MudTh>
+            <MudTh>Aktivní</MudTh>
+            <MudTh>Akce</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Název">@context.Name</MudTd>
+            <MudTd DataLabel="Popis">@context.Description</MudTd>
+            <MudTd DataLabel="Aktivní"><MudIcon Icon="@(context.IsActive ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)" Color="@(context.IsActive ? Color.Success : Color.Error)" /></MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Href="@($"/organizations/{context.Id}")" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    List<ClubManager.Models.Organization>? _orgs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+}
