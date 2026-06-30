@@ -1,0 +1,69 @@
+@page "/clubs"
+@attribute [Authorize]
+@inject ClubService ClubSvc
+
+<PageTitle>Oddíly</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Oddíly</MudText>
+
+<MudSelect T="int?" Label="Organizace" Value="_orgId" Immediate="true"
+           ValueChanged="OnOrgChanged" Class="mb-4" Style="max-width:360px">
+    <MudSelectItem Value="(int?)null">— vyberte organizaci —</MudSelectItem>
+    @foreach (var o in _orgs)
+    {
+        <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+    }
+</MudSelect>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_orgId == null)
+{
+    <MudAlert Severity="MudBlazor.Severity.Info">Vyberte organizaci pro zobrazení oddílů.</MudAlert>
+}
+else if (_clubs.Count == 0)
+{
+    <MudAlert Severity="MudBlazor.Severity.Info">Tato organizace nemá žádné oddíly.</MudAlert>
+}
+else
+{
+    <MudTable Items="_clubs" Hover="true" Striped="true" Dense="true" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Název</MudTh>
+            <MudTh>Popis</MudTh>
+            <MudTh>Aktivní</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Název">@context.Name</MudTd>
+            <MudTd DataLabel="Popis">@(context.Description ?? "—")</MudTd>
+            <MudTd DataLabel="Aktivní">
+                <MudIcon Icon="@(context.IsActive ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                         Color="@(context.IsActive ? Color.Success : Color.Error)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<ClubManager.Models.Organization> _orgs = [];
+    private List<ClubManager.Models.Club> _clubs = [];
+    private int? _orgId;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    private async Task OnOrgChanged(int? orgId)
+    {
+        _orgId = orgId;
+        if (orgId == null) { _clubs = []; return; }
+        _loading = true;
+        StateHasChanged();
+        _clubs = await ClubSvc.GetClubsAsync(orgId.Value);
+        _loading = false;
+    }
+}

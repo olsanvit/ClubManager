@@ -1,8 +1,154 @@
 @page "/messages"
 @attribute [Authorize]
+@inject MessageService MsgSvc
+@inject ClubService ClubSvc
 
 <PageTitle>Zprávy</PageTitle>
 
 <MudText Typo="Typo.h4" GutterBottom="true">Zprávy</MudText>
 
-<MudAlert Severity="MudBlazor.Severity.Info">Vyberte organizaci pro zobrazení zpráv.</MudAlert>
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="4">
+        <MudSelect T="int?" Label="Organizace" Value="_orgId" Immediate="true"
+                   ValueChanged="OnOrgChanged">
+            <MudSelectItem Value="(int?)null">— vše —</MudSelectItem>
+            @foreach (var o in _orgs)
+            {
+                <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    @if (_clubs.Count > 0)
+    {
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="int?" Label="Oddíl" Value="_clubId" Immediate="true"
+                       ValueChanged="OnClubChanged">
+                <MudSelectItem Value="(int?)null">— celá organizace —</MudSelectItem>
+                @foreach (var c in _clubs)
+                {
+                    <MudSelectItem Value="(int?)c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    }
+    <MudItem xs="12" sm="6" md="4" Class="d-flex align-end">
+        <MudButton Href="/messages/send" Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add">
+            Nová zpráva
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_messages.Count == 0)
+{
+    <MudAlert Severity="MudBlazor.Severity.Info">
+        @(_orgId == null ? "Vyberte organizaci pro zobrazení zpráv." : "Žádné zprávy.")
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="_messages" Hover="true" Striped="true" Dense="true" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Předmět</MudTh>
+            <MudTh>Typ</MudTh>
+            <MudTh>Stav</MudTh>
+            <MudTh>Příjemci</MudTh>
+            <MudTh>Odesláno</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudText Typo="Typo.body2" Style="font-weight:500">@context.Subject</MudText>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@TypeColor(context.Type)">
+                    @TypeLabel(context.Type)
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">
+                    @StatusLabel(context.Status)
+                </MudChip>
+            </MudTd>
+            <MudTd>@context.Recipients.Count</MudTd>
+            <MudTd>
+                @(context.SentAt.HasValue
+                    ? context.SentAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                    : "—")
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<Organization> _orgs = [];
+    private List<Club> _clubs = [];
+    private List<Message> _messages = [];
+    private int? _orgId;
+    private int? _clubId;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    private async Task OnOrgChanged(int? orgId)
+    {
+        _orgId = orgId;
+        _clubId = null;
+        _clubs = orgId.HasValue ? await ClubSvc.GetClubsAsync(orgId.Value) : [];
+        await LoadMessages();
+    }
+
+    private async Task OnClubChanged(int? clubId)
+    {
+        _clubId = clubId;
+        await LoadMessages();
+    }
+
+    private async Task LoadMessages()
+    {
+        if (_orgId == null) { _messages = []; return; }
+        _loading = true;
+        StateHasChanged();
+        _messages = await MsgSvc.GetMessagesAsync(_orgId.Value, _clubId);
+        _loading = false;
+    }
+
+    private static Color TypeColor(MessageType t) => t switch
+    {
+        MessageType.Debt    => Color.Error,
+        MessageType.Event   => Color.Info,
+        MessageType.Reminder => Color.Warning,
+        _                   => Color.Default,
+    };
+
+    private static string TypeLabel(MessageType t) => t switch
+    {
+        MessageType.General  => "Obecná",
+        MessageType.Reminder => "Připomínka",
+        MessageType.Debt     => "Nedoplatek",
+        MessageType.Event    => "Událost",
+        _                    => t.ToString(),
+    };
+
+    private static Color StatusColor(MessageStatus s) => s switch
+    {
+        MessageStatus.Sent      => Color.Success,
+        MessageStatus.Draft     => Color.Default,
+        MessageStatus.Cancelled => Color.Error,
+        _                       => Color.Default,
+    };
+
+    private static string StatusLabel(MessageStatus s) => s switch
+    {
+        MessageStatus.Draft     => "Koncept",
+        MessageStatus.Sent      => "Odesláno",
+        MessageStatus.Cancelled => "Zrušeno",
+        _                       => s.ToString(),
+    };
+}

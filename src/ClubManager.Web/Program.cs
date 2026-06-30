@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ClubManager.Data;
 using ClubManager.Services;
+using SharedServices;
 using MercenariesAndBeasts.Infrastructure;
 using MercenariesAndBeasts.Infrastructure.Auth;
 using Microsoft.AspNetCore.HttpOverrides;

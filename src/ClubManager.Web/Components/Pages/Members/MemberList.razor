@@ -1,0 +1,117 @@
+@page "/members"
+@attribute [Authorize]
+@inject ClubService ClubSvc
+
+<PageTitle>Členové</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Členové</MudText>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="4">
+        <MudSelect T="int?" Label="Organizace" Value="_orgId" Immediate="true"
+                   ValueChanged="OnOrgChanged">
+            <MudSelectItem Value="(int?)null">— vyberte organizaci —</MudSelectItem>
+            @foreach (var o in _orgs)
+            {
+                <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    @if (_clubs.Count > 0)
+    {
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="int?" Label="Oddíl" Value="_clubId" Immediate="true"
+                   ValueChanged="OnClubChanged">
+                <MudSelectItem Value="(int?)null">— celá organizace —</MudSelectItem>
+                @foreach (var c in _clubs)
+                {
+                    <MudSelectItem Value="(int?)c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    }
+</MudGrid>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_orgId == null)
+{
+    <MudAlert Severity="MudBlazor.Severity.Info">Vyberte organizaci pro zobrazení členů.</MudAlert>
+}
+else if (_members.Count == 0)
+{
+    <MudAlert Severity="MudBlazor.Severity.Info">Žádní členové.</MudAlert>
+}
+else
+{
+    <MudTable Items="_members" Hover="true" Striped="true" Dense="true" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Jméno / Email</MudTh>
+            <MudTh>Role</MudTh>
+            <MudTh>Aktivní</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Jméno">
+                <MudText Typo="Typo.body2" Style="font-weight:500">
+                    @(context.DisplayName ?? context.User?.Email ?? "—")
+                </MudText>
+                @if (context.DisplayName != null && context.User?.Email != null)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.User.Email</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Role">@RoleLabel(context.Role)</MudTd>
+            <MudTd DataLabel="Aktivní">
+                <MudIcon Icon="@(context.IsActive ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Cancel)"
+                         Color="@(context.IsActive ? Color.Success : Color.Error)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<ClubManager.Models.Organization> _orgs = [];
+    private List<ClubManager.Models.Club> _clubs = [];
+    private List<ClubManager.Models.OrganizationMember> _members = [];
+    private int? _orgId;
+    private int? _clubId;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    private async Task OnOrgChanged(int? orgId)
+    {
+        _orgId = orgId;
+        _clubId = null;
+        _clubs = orgId.HasValue ? await ClubSvc.GetClubsAsync(orgId.Value) : [];
+        await LoadMembers();
+    }
+
+    private async Task OnClubChanged(int? clubId)
+    {
+        _clubId = clubId;
+        await LoadMembers();
+    }
+
+    private async Task LoadMembers()
+    {
+        if (_orgId == null) { _members = []; return; }
+        _loading = true;
+        StateHasChanged();
+        _members = await ClubSvc.GetMembersAsync(_orgId.Value, _clubId);
+        _loading = false;
+    }
+
+    private static string RoleLabel(ClubManager.Models.OrgRole role) => role switch
+    {
+        ClubManager.Models.OrgRole.OrgAdmin      => "Správce org.",
+        ClubManager.Models.OrgRole.ClubManager   => "Vedoucí oddílu",
+        ClubManager.Models.OrgRole.Member        => "Člen",
+        _                                        => role.ToString(),
+    };
+}
