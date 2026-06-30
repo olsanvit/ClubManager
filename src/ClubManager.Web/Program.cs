@@ -52,6 +52,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddMudServices();
 builder.Services.AddSimpleLocalization();
 builder.Services.AddRadzenComponents();
+builder.Services.AddGlobalErrorNotifications();
 
 // ── Notification config ───────────────────────────────────────────────────────
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
