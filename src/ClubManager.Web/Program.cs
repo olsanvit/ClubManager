@@ -13,6 +13,7 @@ using Serilog;
 using Serilog.Exceptions;
 using Serilog.Sinks.PostgreSQL.ColumnWriters;
 using MudBlazor.Services;
+using MercenariesAndBeasts.Infrastructure.Localization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,7 @@ builder.Services.AddRazorPages();
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 builder.Services.AddMudServices();
+builder.Services.AddSimpleLocalization();
 builder.Services.AddRadzenComponents();
 
 // ── Notification config ───────────────────────────────────────────────────────
@@ -101,8 +103,10 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
 app.MapHealthChecks("/health");
+app.MapMabCultureEndpoint();
 app.MapStaticAssets();
 app.UseStaticFiles();
+app.UseRequestLocalization();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

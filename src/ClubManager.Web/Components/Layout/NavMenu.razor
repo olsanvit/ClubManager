@@ -17,6 +17,10 @@
         <MudNavLink Href="/cars/reservations" Icon="@Icons.Material.Filled.CalendarMonth">Rezervace</MudNavLink>
     </MudNavGroup>
 
+    <div style="padding:4px 0;">
+        <LangSwitcher />
+    </div>
+
     <AuthorizeView Roles="Admin">
         <MudNavGroup Title="Administrace" Icon="@Icons.Material.Filled.AdminPanelSettings">
             <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.ManageAccounts">Uživatelé</MudNavLink>
