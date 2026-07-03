@@ -78,6 +78,12 @@ public class MessageService
             await DeliverAsync(messageId);
     }
 
+    public async Task<int> GetSentCountAsync()
+    {
+        await using var db = _factory.CreateDbContext();
+        return await db.Messages.CountAsync(m => m.Status == MessageStatus.Sent);
+    }
+
     private async Task DeliverAsync(int messageId)
     {
         await using var db = _factory.CreateDbContext();

@@ -8,28 +8,56 @@
 
 <MudText Typo="Typo.h4" GutterBottom="true">Rezervace aut</MudText>
 
+<MudGrid Class="mb-4" AlignItems="AlignItems.End">
+    <MudItem xs="12" sm="4">
+        <MudSelect T="int?" Label="Organizace" Value="_orgId" Immediate="true"
+                   ValueChanged="OnOrgChangedAsync">
+            <MudSelectItem Value="(int?)null">— vyberte organizaci —</MudSelectItem>
+            @foreach (var o in _orgs)
+            {
+                <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    @if (_orgId.HasValue)
+    {
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int?" Label="Auto" Value="_filterCarId" Immediate="true"
+                       ValueChanged="@(v => { _filterCarId = v; FilterReservations(); })">
+                <MudSelectItem Value="(int?)null">— všechna auta —</MudSelectItem>
+                @foreach (var c in _cars)
+                {
+                    <MudSelectItem Value="(int?)c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex gap-2">
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Primary"
+                       OnClick="() => _showForm = !_showForm"
+                       StartIcon="@Icons.Material.Filled.Add">
+                Nová rezervace
+            </MudButton>
+            <MudIconButton Icon="@(_calendarView ? Icons.Material.Filled.ViewList : Icons.Material.Filled.CalendarMonth)"
+                           Title="@(_calendarView ? "Seznam" : "Kalendář")"
+                           OnClick="() => _calendarView = !_calendarView" />
+        </MudItem>
+    }
+</MudGrid>
+
 @if (_orgId is null)
 {
-    <MudSelect T="int?" Label="Vyberte organizaci" @bind-Value="_orgId" Class="mb-4">
-        @foreach (var o in _orgs)
-        {
-            <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
-        }
-    </MudSelect>
+    <MudAlert Severity="MudBlazor.Severity.Info">Vyberte organizaci pro zobrazení rezervací.</MudAlert>
 }
 else
 {
-    <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Primary" Class="mb-4"
-               OnClick="() => _showForm = !_showForm">
-        Nová rezervace
-    </MudButton>
-
     @if (_showForm)
     {
         <MudPaper Class="pa-4 mb-4" Elevation="2">
+            <MudText Typo="Typo.subtitle1" GutterBottom="true">Nová rezervace</MudText>
             <MudGrid>
                 <MudItem xs="12" sm="6">
-                    <MudSelect T="int" Label="Auto" @bind-Value="_newRes.CarId">
+                    <MudSelect T="int" Label="Auto" @bind-Value="_newRes.CarId" Required="true">
+                        <MudSelectItem Value="0">— vyberte auto —</MudSelectItem>
                         @foreach (var c in _cars)
                         {
                             <MudSelectItem Value="c.Id">@c.Name (@c.LicensePlate)</MudSelectItem>
@@ -45,20 +73,89 @@ else
                 <MudItem xs="12">
                     <MudTextField Label="Účel" @bind-Value="_newRes.Purpose" />
                 </MudItem>
-                <MudItem xs="12">
-                    <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Success" OnClick="CreateReservationAsync">Rezervovat</MudButton>
+                <MudItem xs="12" Class="d-flex gap-2">
+                    <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Success"
+                               OnClick="CreateReservationAsync" Disabled="_saving">
+                        @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                        Rezervovat
+                    </MudButton>
+                    <MudButton Variant="MudBlazor.Variant.Text" OnClick="() => _showForm = false">Zrušit</MudButton>
                 </MudItem>
             </MudGrid>
         </MudPaper>
     }
 
-    @if (_reservations is null)
+    @if (_loading)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+    }
+    else if (_filtered.Count == 0)
+    {
+        <MudAlert Severity="MudBlazor.Severity.Info">Žádné rezervace.</MudAlert>
+    }
+    else if (_calendarView)
+    {
+        @* Měsíční kalendář *@
+        <MudGrid Class="mb-2" AlignItems="AlignItems.Center">
+            <MudItem>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PrevMonth" />
+            </MudItem>
+            <MudItem>
+                <MudText Typo="Typo.h6">@_calMonth.ToString("MMMM yyyy", new System.Globalization.CultureInfo("cs-CZ"))</MudText>
+            </MudItem>
+            <MudItem>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="NextMonth" />
+            </MudItem>
+        </MudGrid>
+
+        @{ var firstDay = new DateTime(_calMonth.Year, _calMonth.Month, 1);
+           var daysInMonth = DateTime.DaysInMonth(_calMonth.Year, _calMonth.Month);
+           var startDow = ((int)firstDay.DayOfWeek + 6) % 7; // Po=0
+        }
+
+        <MudPaper Class="pa-2" Elevation="1">
+            <MudGrid Spacing="0">
+                @foreach (var d in new[] { "Po", "Út", "St", "Čt", "Pá", "So", "Ne" })
+                {
+                    <MudItem xs="@(12 / 7)" Style="text-align:center;padding:4px">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@d</MudText>
+                    </MudItem>
+                }
+                @for (int i = 0; i < startDow; i++)
+                {
+                    <MudItem xs="@(12 / 7)" />
+                }
+                @for (int day = 1; day <= daysInMonth; day++)
+                {
+                    var date = new DateTime(_calMonth.Year, _calMonth.Month, day);
+                    var dayRes = _filtered.Where(r => r.DateFrom.Date <= date && r.DateTo.Date >= date).ToList();
+                    var isToday = date.Date == DateTime.Today;
+                    <MudItem xs="@(12 / 7)" Style="min-height:72px;border:1px solid var(--mud-palette-lines-default);padding:2px">
+                        <MudText Typo="Typo.caption"
+                                 Style="@(isToday ? "font-weight:bold;color:var(--mud-palette-primary)" : "")">
+                            @day
+                        </MudText>
+                        @foreach (var r in dayRes.Take(2))
+                        {
+                            <MudTooltip Text="@($"{r.Car.Name} — {r.Purpose ?? "bez účelu"} ({r.Status})")">
+                                <MudChip T="string" Size="Size.Small" Color="@StatusColor(r.Status)"
+                                         Style="font-size:10px;height:18px;margin:1px 0;width:100%">
+                                    @r.Car.Name
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                        @if (dayRes.Count > 2)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">+@(dayRes.Count - 2)</MudText>
+                        }
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudPaper>
     }
     else
     {
-        <MudTable Items="_reservations" Hover="true" Striped="true">
+        <MudTable Items="_filtered" Hover="true" Striped="true" Dense="true">
             <HeaderContent>
                 <MudTh>Auto</MudTh>
                 <MudTh>Uživatel</MudTh>
@@ -71,12 +168,12 @@ else
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.Car.Name</MudTd>
-                <MudTd>@(context.User.Email ?? context.User.UserName)</MudTd>
+                <MudTd>@(context.User?.Email ?? context.User?.UserName ?? "—")</MudTd>
                 <MudTd>@context.DateFrom.ToString("dd.MM.yyyy")</MudTd>
                 <MudTd>@context.DateTo.ToString("dd.MM.yyyy")</MudTd>
                 <MudTd>@context.DaysDriven</MudTd>
                 <MudTd>@(context.KmDriven.HasValue ? $"{context.KmDriven:N0} km" : "—")</MudTd>
-                <MudTd><MudChip T="string" Color="StatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip></MudTd>
+                <MudTd><MudChip T="string" Color="@StatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip></MudTd>
                 <MudTd>@context.Purpose</MudTd>
             </RowTemplate>
         </MudTable>
@@ -84,14 +181,18 @@ else
 }
 
 @code {
-    [SupplyParameterFromQuery] int? CarId { get; set; }
-
     int? _orgId;
+    int? _filterCarId;
     bool _showForm;
+    bool _calendarView;
+    bool _loading;
+    bool _saving;
     DateTime? _dateFrom, _dateTo;
+    DateTime _calMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     List<ClubManager.Models.Organization> _orgs = [];
     List<ClubManager.Models.Car> _cars = [];
-    List<ClubManager.Models.CarReservation>? _reservations;
+    List<ClubManager.Models.CarReservation> _reservations = [];
+    List<ClubManager.Models.CarReservation> _filtered = [];
     ClubManager.Models.CarReservation _newRes = new();
 
     protected override async Task OnInitializedAsync()
@@ -99,13 +200,24 @@ else
         _orgs = await ClubSvc.GetOrganizationsAsync();
     }
 
-    protected override async Task OnParametersSetAsync()
+    async Task OnOrgChangedAsync(int? orgId)
     {
-        if (_orgId.HasValue)
-        {
-            _cars = await CarSvc.GetCarsAsync(_orgId.Value);
-            _reservations = await CarSvc.GetReservationsAsync(_orgId.Value);
-        }
+        _orgId = orgId;
+        _filterCarId = null;
+        if (orgId is null) { _cars = []; _reservations = []; _filtered = []; return; }
+        _loading = true;
+        StateHasChanged();
+        _cars = await CarSvc.GetCarsAsync(orgId.Value);
+        _reservations = await CarSvc.GetReservationsAsync(orgId.Value);
+        FilterReservations();
+        _loading = false;
+    }
+
+    void FilterReservations()
+    {
+        _filtered = _filterCarId.HasValue
+            ? _reservations.Where(r => r.CarId == _filterCarId.Value).ToList()
+            : _reservations;
     }
 
     async Task CreateReservationAsync()
@@ -115,6 +227,7 @@ else
             Snackbar.Add("Vyplňte auto a termín.", MudBlazor.Severity.Warning);
             return;
         }
+        _saving = true;
         _newRes.DateFrom = _dateFrom.Value;
         _newRes.DateTo = _dateTo.Value;
         try
@@ -122,21 +235,27 @@ else
             await CarSvc.CreateAsync(_newRes);
             Snackbar.Add("Rezervace vytvořena.", MudBlazor.Severity.Success);
             _newRes = new();
+            _dateFrom = _dateTo = null;
             _showForm = false;
             _reservations = await CarSvc.GetReservationsAsync(_orgId!.Value);
+            FilterReservations();
         }
         catch (Exception ex)
         {
             Snackbar.Add(ex.Message, MudBlazor.Severity.Error);
         }
+        finally { _saving = false; }
     }
+
+    void PrevMonth() => _calMonth = _calMonth.AddMonths(-1);
+    void NextMonth() => _calMonth = _calMonth.AddMonths(1);
 
     static Color StatusColor(ClubManager.Models.ReservationStatus s) => s switch
     {
-        ClubManager.Models.ReservationStatus.Approved => Color.Success,
+        ClubManager.Models.ReservationStatus.Approved  => Color.Success,
         ClubManager.Models.ReservationStatus.Completed => Color.Info,
-        ClubManager.Models.ReservationStatus.Rejected => Color.Error,
+        ClubManager.Models.ReservationStatus.Rejected  => Color.Error,
         ClubManager.Models.ReservationStatus.Cancelled => Color.Warning,
-        _ => Color.Default
+        _                                               => Color.Default
     };
 }

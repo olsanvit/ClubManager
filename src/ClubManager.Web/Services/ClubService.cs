@@ -79,4 +79,13 @@ public class ClubService
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task<(int Orgs, int Clubs, int Members)> GetSummaryAsync()
+    {
+        await using var db = _factory.CreateDbContext();
+        var orgs = await db.Organizations.CountAsync(o => o.IsActive);
+        var clubs = await db.Clubs.CountAsync(c => c.IsActive);
+        var members = await db.OrganizationMembers.CountAsync(m => m.IsActive);
+        return (orgs, clubs, members);
+    }
 }

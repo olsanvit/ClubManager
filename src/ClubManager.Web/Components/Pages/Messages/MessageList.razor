@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject MessageService MsgSvc
 @inject ClubService ClubSvc
+@inject NavigationManager Nav
 
 <PageTitle>Zprávy</PageTitle>
 
@@ -51,7 +52,8 @@ else if (_messages.Count == 0)
 }
 else
 {
-    <MudTable Items="_messages" Hover="true" Striped="true" Dense="true" Breakpoint="Breakpoint.Sm">
+    <MudTable Items="_messages" Hover="true" Striped="true" Dense="true" Breakpoint="Breakpoint.Sm"
+              OnRowClick="@(args => Nav.NavigateTo($"/messages/{args.Item.Id}"))" T="Message">
         <HeaderContent>
             <MudTh>Předmět</MudTh>
             <MudTh>Typ</MudTh>

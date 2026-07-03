@@ -1,0 +1,177 @@
+@page "/messages/{Id:int}"
+@attribute [Authorize]
+@inject MessageService MsgSvc
+@inject NavigationManager Nav
+
+<PageTitle>Detail zprávy</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_msg is null)
+{
+    <MudAlert Severity="MudBlazor.Severity.Error">Zpráva nenalezena.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h5">@_msg.Subject</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Typ</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@TypeColor(_msg.Type)">@TypeLabel(_msg.Type)</MudChip>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Stav</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@StatusColor(_msg.Status)">@StatusLabel(_msg.Status)</MudChip>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Oddíl</MudText>
+                        <MudText Typo="Typo.body2">@(_msg.Club?.Name ?? "— celá organizace —")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Odesílatel</MudText>
+                        <MudText Typo="Typo.body2">@(_msg.SenderUser?.UserName ?? _msg.SenderUserId)</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Odesláno</MudText>
+                        <MudText Typo="Typo.body2">
+                            @(_msg.SentAt.HasValue
+                                ? _msg.SentAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                : "—")
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.body1" Style="white-space:pre-wrap">@_msg.Body</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1" GutterBottom="true">
+                    Příjemci (@_msg.Recipients.Count)
+                </MudText>
+                @if (_msg.Recipients.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Žádní příjemci.</MudText>
+                }
+                else
+                {
+                    <MudList T="MessageRecipient" Dense="true">
+                        @foreach (var r in _msg.Recipients.OrderBy(r => r.User?.UserName))
+                        {
+                            <MudListItem T="MessageRecipient">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.body2">@(r.User?.UserName ?? r.UserId)</MudText>
+                                    <MudStack Row="true" Spacing="1">
+                                        @if (_msg.SendEmail)
+                                        {
+                                            <MudTooltip Text="@($"Email: {DeliveryLabel(r.EmailStatus)}")">
+                                                <MudIcon Icon="@Icons.Material.Filled.Email"
+                                                         Color="@DeliveryColor(r.EmailStatus)" Size="Size.Small" />
+                                            </MudTooltip>
+                                        }
+                                        @if (_msg.SendNtfy)
+                                        {
+                                            <MudTooltip Text="@($"Ntfy: {DeliveryLabel(r.NtfyStatus)}")">
+                                                <MudIcon Icon="@Icons.Material.Filled.Notifications"
+                                                         Color="@DeliveryColor(r.NtfyStatus)" Size="Size.Small" />
+                                            </MudTooltip>
+                                        }
+                                        @if (r.ReadAt.HasValue)
+                                        {
+                                            <MudTooltip Text="@($"Přečteno: {r.ReadAt.Value.ToLocalTime():dd.MM. HH:mm}")">
+                                                <MudIcon Icon="@Icons.Material.Filled.DoneAll"
+                                                         Color="Color.Success" Size="Size.Small" />
+                                            </MudTooltip>
+                                        }
+                                    </MudStack>
+                                </MudStack>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    Message? _msg;
+    bool _loading = true;
+
+    readonly List<BreadcrumbItem> _breadcrumbs =
+    [
+        new("Přehled", "/"),
+        new("Zprávy", "/messages"),
+        new("Detail", null, disabled: true)
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _msg = await MsgSvc.GetMessageAsync(Id);
+        _loading = false;
+    }
+
+    static Color TypeColor(MessageType t) => t switch
+    {
+        MessageType.Debt     => Color.Error,
+        MessageType.Event    => Color.Info,
+        MessageType.Reminder => Color.Warning,
+        _                    => Color.Default,
+    };
+
+    static string TypeLabel(MessageType t) => t switch
+    {
+        MessageType.General  => "Obecná",
+        MessageType.Reminder => "Připomínka",
+        MessageType.Debt     => "Nedoplatek",
+        MessageType.Event    => "Událost",
+        _                    => t.ToString(),
+    };
+
+    static Color StatusColor(MessageStatus s) => s switch
+    {
+        MessageStatus.Sent      => Color.Success,
+        MessageStatus.Draft     => Color.Default,
+        MessageStatus.Cancelled => Color.Error,
+        _                       => Color.Default,
+    };
+
+    static string StatusLabel(MessageStatus s) => s switch
+    {
+        MessageStatus.Draft     => "Koncept",
+        MessageStatus.Sent      => "Odesláno",
+        MessageStatus.Cancelled => "Zrušeno",
+        _                       => s.ToString(),
+    };
+
+    static Color DeliveryColor(DeliveryStatus s) => s switch
+    {
+        DeliveryStatus.Sent   => Color.Success,
+        DeliveryStatus.Failed => Color.Error,
+        DeliveryStatus.Read   => Color.Success,
+        _                     => Color.Default,
+    };
+
+    static string DeliveryLabel(DeliveryStatus s) => s switch
+    {
+        DeliveryStatus.Pending => "čeká",
+        DeliveryStatus.Sent    => "odesláno",
+        DeliveryStatus.Failed  => "selhalo",
+        DeliveryStatus.Read    => "přečteno",
+        _                      => s.ToString(),
+    };
+}

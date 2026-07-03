@@ -1,33 +1,103 @@
 @page "/"
 @attribute [Authorize]
+@inject ClubService ClubSvc
+@inject MessageService MsgSvc
 
 <PageTitle>ClubManager — Přehled</PageTitle>
 
 <MudText Typo="Typo.h4" GutterBottom="true">Přehled</MudText>
 
-<MudGrid>
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Organizace</MudText>
-            <MudText Typo="Typo.h4">—</MudText>
-        </MudPaper>
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Oddíly</MudText>
-            <MudText Typo="Typo.h4">—</MudText>
-        </MudPaper>
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Členové</MudText>
-            <MudText Typo="Typo.h4">—</MudText>
-        </MudPaper>
-    </MudItem>
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="pa-4" Elevation="2">
-            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Nepřečtené zprávy</MudText>
-            <MudText Typo="Typo.h4">—</MudText>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Organizace</MudText>
+                <MudText Typo="Typo.h4">@_orgs</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Oddíly</MudText>
+                <MudText Typo="Typo.h4">@_clubs</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Členové</MudText>
+                <MudText Typo="Typo.h4">@_members</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Odeslané zprávy</MudText>
+                <MudText Typo="Typo.h4">@_sentMessages</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.h6" GutterBottom="true">Rychlé akce</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/organizations" FullWidth="true" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Business" Color="Color.Primary" Size="Size.Large">
+                Organizace
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/clubs" FullWidth="true" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Group" Color="Color.Primary" Size="Size.Large">
+                Oddíly
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/members" FullWidth="true" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large">
+                Členové
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/messages/send" FullWidth="true" Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Send" Color="Color.Primary" Size="Size.Large">
+                Nová zpráva
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/messages" FullWidth="true" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Inbox" Color="Color.Default" Size="Size.Large">
+                Zprávy
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/cars" FullWidth="true" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.DirectionsCar" Color="Color.Default" Size="Size.Large">
+                Auta
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Href="/cars/reservations" FullWidth="true" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.EventAvailable" Color="Color.Default" Size="Size.Large">
+                Rezervace
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    bool _loading = true;
+    int _orgs, _clubs, _members, _sentMessages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var statsTask = ClubSvc.GetSummaryAsync();
+        var sentTask = MsgSvc.GetSentCountAsync();
+        await Task.WhenAll(statsTask, sentTask);
+        (_orgs, _clubs, _members) = statsTask.Result;
+        _sentMessages = sentTask.Result;
+        _loading = false;
+    }
+}
