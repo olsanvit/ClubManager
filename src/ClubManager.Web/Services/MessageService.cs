@@ -99,6 +99,21 @@ public class MessageService
                 var ok = await _notifier.SendEmailAsync(r.User.Email, r.User.UserName ?? "", msg.Subject, msg.Body);
                 r.EmailStatus = ok ? DeliveryStatus.Sent : DeliveryStatus.Failed;
             }
+
+            if (msg.SendNtfy && r.NtfyStatus == DeliveryStatus.Pending)
+            {
+                var topic = $"clubmanager-{r.UserId.Replace("-", "")[..8]}";
+                var typeTag = msg.Type switch
+                {
+                    MessageType.Debt     => "warning,money_with_wings",
+                    MessageType.Reminder => "bell",
+                    MessageType.Event    => "calendar",
+                    _                    => "envelope"
+                };
+                var preview = msg.Body.Length > 200 ? msg.Body[..200] + "…" : msg.Body;
+                var ok = await _notifier.SendNtfyAsync(topic, msg.Subject, preview, typeTag);
+                r.NtfyStatus = ok ? DeliveryStatus.Sent : DeliveryStatus.Failed;
+            }
         }
 
         await db.SaveChangesAsync();
