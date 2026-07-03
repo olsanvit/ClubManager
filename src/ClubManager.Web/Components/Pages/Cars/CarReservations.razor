@@ -8,7 +8,7 @@
 
 <MudText Typo="Typo.h4" GutterBottom="true">Rezervace aut</MudText>
 
-<MudGrid Class="mb-4" AlignItems="AlignItems.End">
+<MudGrid Class="mb-4">
     <MudItem xs="12" sm="4">
         <MudSelect T="int?" Label="Organizace" Value="_orgId" Immediate="true"
                    ValueChanged="OnOrgChangedAsync">
@@ -38,7 +38,7 @@
                 Nová rezervace
             </MudButton>
             <MudIconButton Icon="@(_calendarView ? Icons.Material.Filled.ViewList : Icons.Material.Filled.CalendarMonth)"
-                           Title="@(_calendarView ? "Seznam" : "Kalendář")"
+                           aria-label="@(_calendarView ? "Seznam" : "Kalendář")"
                            OnClick="() => _calendarView = !_calendarView" />
         </MudItem>
     }
@@ -96,7 +96,7 @@ else
     else if (_calendarView)
     {
         @* Měsíční kalendář *@
-        <MudGrid Class="mb-2" AlignItems="AlignItems.Center">
+        <MudGrid Class="mb-2">
             <MudItem>
                 <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PrevMonth" />
             </MudItem>
@@ -108,11 +108,6 @@ else
             </MudItem>
         </MudGrid>
 
-        @{ var firstDay = new DateTime(_calMonth.Year, _calMonth.Month, 1);
-           var daysInMonth = DateTime.DaysInMonth(_calMonth.Year, _calMonth.Month);
-           var startDow = ((int)firstDay.DayOfWeek + 6) % 7; // Po=0
-        }
-
         <MudPaper Class="pa-2" Elevation="1">
             <MudGrid Spacing="0">
                 @foreach (var d in new[] { "Po", "Út", "St", "Čt", "Pá", "So", "Ne" })
@@ -121,11 +116,11 @@ else
                         <MudText Typo="Typo.caption" Color="Color.Secondary">@d</MudText>
                     </MudItem>
                 }
-                @for (int i = 0; i < startDow; i++)
+                @for (int i = 0; i < _calStartDow; i++)
                 {
                     <MudItem xs="@(12 / 7)" />
                 }
-                @for (int day = 1; day <= daysInMonth; day++)
+                @for (int day = 1; day <= _calDaysInMonth; day++)
                 {
                     var date = new DateTime(_calMonth.Year, _calMonth.Month, day);
                     var dayRes = _filtered.Where(r => r.DateFrom.Date <= date && r.DateTo.Date >= date).ToList();
@@ -249,6 +244,10 @@ else
 
     void PrevMonth() => _calMonth = _calMonth.AddMonths(-1);
     void NextMonth() => _calMonth = _calMonth.AddMonths(1);
+
+    private DateTime _calFirstDay => new DateTime(_calMonth.Year, _calMonth.Month, 1);
+    private int _calDaysInMonth => DateTime.DaysInMonth(_calMonth.Year, _calMonth.Month);
+    private int _calStartDow => ((int)_calFirstDay.DayOfWeek + 6) % 7;
 
     static Color StatusColor(ClubManager.Models.ReservationStatus s) => s switch
     {

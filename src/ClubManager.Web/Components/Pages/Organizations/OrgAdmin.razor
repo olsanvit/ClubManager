@@ -1,0 +1,205 @@
+@page "/organizations/{Id:int}/admin"
+@attribute [Authorize(Roles = "Admin,ClubManager")]
+@using ClubManager.Models
+@using Microsoft.EntityFrameworkCore
+@inject ClubService ClubSvc
+@inject IDbContextFactory<AppDbContextClubManager> DbFactory
+@inject ISnackbar Snackbar
+
+<PageTitle>Správa organizace</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_org is null)
+{
+    <MudAlert Severity="MudBlazor.Severity.Error">Organizace nenalezena.</MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
+        <MudButton Href="/organizations" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+            Zpět
+        </MudButton>
+        <MudText Typo="Typo.h4">@_org.Name — správa</MudText>
+    </MudStack>
+
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.Group" Class="mr-2" />
+                            Členové (@_members.Count)
+                        </MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudTextField @bind-Value="_search" Placeholder="Hledat…"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true" Class="mt-0" Style="max-width:200px" />
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent Class="pa-0">
+                    <MudTable Items="@FilteredMembers" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>Člen</MudTh>
+                            <MudTh>Role</MudTh>
+                            <MudTh>Přidal se</MudTh>
+                            <MudTh>Stav</MudTh>
+                            <MudTh>Akce</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudText Typo="Typo.body2" Class="fw-semibold">
+                                    @(context.DisplayName ?? context.User?.UserName ?? context.UserId)
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(context.User?.Email))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.User.Email</MudText>
+                                }
+                            </MudTd>
+                            <MudTd>
+                                <MudSelect T="OrgRole" Value="context.Role" Dense="true"
+                                           ValueChanged="r => ChangeRoleAsync(context, r)"
+                                           Style="min-width:130px">
+                                    <MudSelectItem Value="OrgRole.Member">Člen</MudSelectItem>
+                                    <MudSelectItem Value="OrgRole.ClubManager">Správce oddílu</MudSelectItem>
+                                    <MudSelectItem Value="OrgRole.OrgAdmin">Org. správce</MudSelectItem>
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption">@context.JoinedAt.ToString("dd.MM.yyyy")</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                                    @(context.IsActive ? "Aktivní" : "Neaktivní")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.PersonOff : Icons.Material.Filled.PersonAdd)"
+                                               Color="@(context.IsActive ? Color.Warning : Color.Success)"
+                                               Size="Size.Small"
+                                               aria-label="@(context.IsActive ? "Deaktivovat" : "Aktivovat")"
+                                               OnClick="() => ToggleActiveAsync(context)" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudCard Class="mb-3">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />
+                            Oddíly
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent Class="pa-0">
+                    @if (!_clubs.Any())
+                    {
+                        <MudText Class="pa-4 mud-text-secondary">Žádné oddíly.</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="string" Dense="true">
+                            @foreach (var club in _clubs)
+                            {
+                                <MudListItem T="string" Icon="@Icons.Material.Filled.SportsSoccer">
+                                    <MudText Typo="Typo.body2">@club.Name</MudText>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+                            Statistiky
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string">Celkem členů: <strong>@_members.Count</strong></MudListItem>
+                        <MudListItem T="string">Aktivních: <strong>@_members.Count(m => m.IsActive)</strong></MudListItem>
+                        <MudListItem T="string">Správců: <strong>@_members.Count(m => m.Role >= OrgRole.ClubManager)</strong></MudListItem>
+                        <MudListItem T="string">Oddílů: <strong>@_clubs.Count</strong></MudListItem>
+                    </MudList>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _loading = true;
+    private string _search = "";
+    private Organization? _org;
+    private List<OrganizationMember> _members = [];
+    private List<Club> _clubs = [];
+
+    private IEnumerable<OrganizationMember> FilteredMembers =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _members
+            : _members.Where(m =>
+                (m.DisplayName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (m.User?.UserName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (m.User?.Email?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _org = await db.Organizations.FindAsync(Id);
+        if (_org is null) { _loading = false; return; }
+        _members = await db.OrganizationMembers
+            .Include(m => m.User)
+            .Where(m => m.OrganizationId == Id)
+            .OrderBy(m => m.DisplayName ?? m.User.UserName)
+            .ToListAsync();
+        _clubs = await ClubSvc.GetClubsAsync(Id);
+        _loading = false;
+    }
+
+    private async Task ChangeRoleAsync(OrganizationMember member, OrgRole newRole)
+    {
+        if (member.Role == newRole) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var m = await db.OrganizationMembers.FindAsync(member.Id);
+        if (m is null) return;
+        m.Role = newRole;
+        member.Role = newRole;
+        await db.SaveChangesAsync();
+        Snackbar.Add($"Role změněna na {RoleLabel(newRole)}.", MudBlazor.Severity.Success);
+    }
+
+    private async Task ToggleActiveAsync(OrganizationMember member)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var m = await db.OrganizationMembers.FindAsync(member.Id);
+        if (m is null) return;
+        m.IsActive = !m.IsActive;
+        member.IsActive = m.IsActive;
+        await db.SaveChangesAsync();
+        Snackbar.Add(member.IsActive ? "Člen aktivován." : "Člen deaktivován.", MudBlazor.Severity.Info);
+    }
+
+    private static string RoleLabel(OrgRole r) => r switch
+    {
+        OrgRole.Member       => "Člen",
+        OrgRole.ClubManager  => "Správce oddílu",
+        OrgRole.OrgAdmin     => "Org. správce",
+        _                    => r.ToString()
+    };
+}

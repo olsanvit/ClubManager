@@ -12,7 +12,9 @@
 <MudPaper Class="pa-4" Elevation="2">
     <MudGrid>
         <MudItem xs="12" sm="6">
-            <MudSelect T="int?" Label="Organizace" @bind-Value="_orgId" Required="true">
+            <MudSelect T="int?" Label="Organizace" Value="_orgId" Required="true"
+                       ValueChanged="OnOrgSelect">
+                <MudSelectItem Value="(int?)null">— vyberte organizaci —</MudSelectItem>
                 @foreach (var o in _orgs)
                 {
                     <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
@@ -20,7 +22,8 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudSelect T="int?" Label="Oddíl (volitelné)" @bind-Value="_clubId">
+            <MudSelect T="int?" Label="Oddíl (volitelné)" Value="_clubId"
+                       ValueChanged="OnClubSelect">
                 <MudSelectItem Value="(int?)null">— celá organizace —</MudSelectItem>
                 @foreach (var c in _clubs)
                 {
@@ -46,10 +49,49 @@
             <MudCheckBox @bind-Value="_sendEmail" Label="Odeslat emailem" />
             <MudCheckBox @bind-Value="_sendNtfy" Label="Odeslat přes ntfy" />
         </MudItem>
+
+        @* ── Preview příjemců ──────────────────────────────── *@
+        @if (_orgId.HasValue)
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-3 mud-background-gray rounded-lg" Elevation="0">
+                    @if (_loadingRecipients)
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            Načítám příjemce…
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.subtitle2" GutterBottom="true">
+                            <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Class="mr-1" />
+                            Zpráva bude odeslána <strong>@_recipientPreview.Count</strong> @(_recipientPreview.Count == 1 ? "příjemci" : "příjemcům")
+                            @if (_clubId.HasValue) { <span> (oddíl)</span> } else { <span> (celá organizace)</span> }
+                        </MudText>
+                        @if (_recipientPreview.Any())
+                        {
+                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                @foreach (var name in _recipientPreview.Take(10))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">@name</MudChip>
+                                }
+                                @if (_recipientPreview.Count > 10)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary">+@(_recipientPreview.Count - 10) dalších</MudChip>
+                                }
+                            </MudStack>
+                        }
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+
         <MudItem xs="12">
-            <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Primary" OnClick="SendAsync" Disabled="_sending">
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="Color.Primary" OnClick="SendAsync"
+                       Disabled="@(_sending || _recipientPreview.Count == 0)" StartIcon="@Icons.Material.Filled.Send">
                 @if (_sending) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                Odeslat
+                Odeslat @(_recipientPreview.Count > 0 ? $"({_recipientPreview.Count})" : "")
             </MudButton>
         </MudItem>
     </MudGrid>
@@ -58,14 +100,38 @@
 @code {
     int? _orgId, _clubId;
     string _subject = "", _body = "";
-    bool _sendEmail = true, _sendNtfy = false, _sending;
+    bool _sendEmail = true, _sendNtfy = false, _sending, _loadingRecipients;
     ClubManager.Models.MessageType _type = ClubManager.Models.MessageType.General;
     List<ClubManager.Models.Organization> _orgs = [];
     List<ClubManager.Models.Club> _clubs = [];
+    List<string> _recipientPreview = [];
 
     protected override async Task OnInitializedAsync()
     {
         _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    async Task OnOrgSelect(int? id)
+    {
+        _orgId = id;
+        _clubId = null;
+        _clubs = id.HasValue ? await ClubSvc.GetClubsAsync(id.Value) : [];
+        await RefreshRecipientsAsync();
+    }
+
+    async Task OnClubSelect(int? id)
+    {
+        _clubId = id;
+        await RefreshRecipientsAsync();
+    }
+
+    async Task RefreshRecipientsAsync()
+    {
+        if (_orgId is null) { _recipientPreview = []; return; }
+        _loadingRecipients = true;
+        var members = await ClubSvc.GetMembersAsync(_orgId.Value, _clubId);
+        _recipientPreview = members.Select(m => m.DisplayName ?? m.User?.UserName ?? m.UserId).Distinct().ToList();
+        _loadingRecipients = false;
     }
 
     async Task SendAsync()

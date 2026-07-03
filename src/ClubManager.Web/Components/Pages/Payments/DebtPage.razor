@@ -1,0 +1,156 @@
+@page "/payments/debts"
+@attribute [Authorize(Roles = "Admin,ClubManager")]
+@using ClubManager.Models
+@using Microsoft.EntityFrameworkCore
+@inject ClubService ClubSvc
+@inject IDbContextFactory<AppDbContextClubManager> DbFactory
+
+<PageTitle>Nedoplatky</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">
+    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-2" />
+    Nedoplatky
+</MudText>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="4">
+        <MudSelect T="int?" Label="Organizace" Value="_orgId" Immediate="true"
+                   ValueChanged="OnOrgChanged">
+            <MudSelectItem Value="(int?)null">— vyberte organizaci —</MudSelectItem>
+            @foreach (var o in _orgs)
+            {
+                <MudSelectItem Value="(int?)o.Id">@o.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    @if (_orgId.HasValue)
+    {
+        <MudItem xs="12" sm="6" md="4" Class="d-flex align-end">
+            <MudButton Href="/messages/send" Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add">
+                Nová zpráva — nedoplatek
+            </MudButton>
+        </MudItem>
+    }
+</MudGrid>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else if (_orgId is null)
+{
+    <MudAlert Severity="MudBlazor.Severity.Info">Vyberte organizaci pro zobrazení nedoplatků.</MudAlert>
+}
+else if (!_debtMessages.Any())
+{
+    <MudAlert Severity="MudBlazor.Severity.Success">
+        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+        Žádné nevyřízené nedoplatky.
+    </MudAlert>
+}
+else
+{
+    @* Summary chips *@
+    <MudStack Row="true" Spacing="2" Class="mb-4" AlignItems="AlignItems.Center">
+        <MudChip T="string" Color="Color.Default">@_debtMessages.Count zpráv o nedoplatku</MudChip>
+        <MudChip T="string" Color="Color.Error">@_debtMessages.Sum(m => m.UnreadCount) příjemců bez přečtení</MudChip>
+        <MudChip T="string" Color="Color.Success">@_debtMessages.Sum(m => m.ReadCount) příjemců přečetlo</MudChip>
+    </MudStack>
+
+    @foreach (var msg in _debtMessages.OrderByDescending(m => m.SentAt))
+    {
+        int total = msg.ReadCount + msg.UnreadCount;
+        int readPct = total > 0 ? msg.ReadCount * 100 / total : 0;
+        <MudCard Class="mb-3" Outlined="true">
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        <div class="d-flex align-center gap-3 mb-1">
+                            <MudText Typo="Typo.h6">@msg.Subject</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Nedoplatek</MudChip>
+                        </div>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            Odesláno: @(msg.SentAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")
+                        </MudText>
+                        @if (!string.IsNullOrEmpty(msg.ClubName))
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Oddíl: @msg.ClubName</MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <MudIcon Icon="@Icons.Material.Filled.MarkEmailRead" Color="Color.Success" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@msg.ReadCount přečetlo</MudText>
+                            <MudIcon Icon="@Icons.Material.Filled.MarkEmailUnread" Color="Color.Error" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@msg.UnreadCount nepřečetlo</MudText>
+                        </div>
+                        <MudProgressLinear Value="@readPct" Color="Color.Success" Rounded="true" Size="Size.Medium" />
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@readPct % přečteno</MudText>
+                    </MudItem>
+                </MudGrid>
+
+                @if (msg.UnreadCount > 0 && msg.UnreadNames.Any())
+                {
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Nepřečetli:</MudText>
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                        @foreach (var name in msg.UnreadNames)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@name</MudChip>
+                        }
+                    </MudStack>
+                }
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Href="@($"/messages/{msg.Id}")" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                    Detail zprávy
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+}
+
+@code {
+    private int? _orgId;
+    private bool _loading;
+    private List<Organization> _orgs = [];
+    private List<DebtSummary> _debtMessages = [];
+
+    private record DebtSummary(int Id, string Subject, DateTime? SentAt, string? ClubName, int ReadCount, int UnreadCount, List<string> UnreadNames);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await ClubSvc.GetOrganizationsAsync();
+    }
+
+    private async Task OnOrgChanged(int? id)
+    {
+        _orgId = id;
+        if (_orgId is null) { _debtMessages = []; return; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var messages = await db.Messages
+            .Include(m => m.Club)
+            .Include(m => m.Recipients).ThenInclude(r => r.User)
+            .Where(m => m.OrganizationId == _orgId && m.Type == MessageType.Debt && m.Status == MessageStatus.Sent)
+            .OrderByDescending(m => m.SentAt)
+            .ToListAsync();
+
+        _debtMessages = messages.Select(m => new DebtSummary(
+            m.Id,
+            m.Subject,
+            m.SentAt,
+            m.Club?.Name,
+            m.Recipients.Count(r => r.ReadAt.HasValue),
+            m.Recipients.Count(r => !r.ReadAt.HasValue),
+            m.Recipients.Where(r => !r.ReadAt.HasValue).Select(r => r.User.UserName ?? r.User.Email ?? r.UserId).Take(20).ToList()
+        )).ToList();
+        _loading = false;
+    }
+}
