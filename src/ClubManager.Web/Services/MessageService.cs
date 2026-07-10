@@ -21,6 +21,7 @@ public class MessageService
         var q = db.Messages
             .Include(m => m.SenderUser)
             .Include(m => m.Club)
+            .Include(m => m.Recipients)
             .Where(m => m.OrganizationId == organizationId);
         if (clubId.HasValue)
             q = q.Where(m => m.ClubId == clubId);

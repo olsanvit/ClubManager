@@ -149,7 +149,7 @@ else
             m.Club?.Name,
             m.Recipients.Count(r => r.ReadAt.HasValue),
             m.Recipients.Count(r => !r.ReadAt.HasValue),
-            m.Recipients.Where(r => !r.ReadAt.HasValue).Select(r => r.User.UserName ?? r.User.Email ?? r.UserId).Take(20).ToList()
+            m.Recipients.Where(r => !r.ReadAt.HasValue).Select(r => r.User?.UserName ?? r.User?.Email ?? r.UserId).Take(20).ToList()
         )).ToList();
         _loading = false;
     }

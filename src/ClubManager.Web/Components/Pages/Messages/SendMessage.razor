@@ -4,6 +4,7 @@
 @inject ClubService ClubSvc
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Nová zpráva</PageTitle>
 
@@ -106,9 +107,13 @@
     List<ClubManager.Models.Club> _clubs = [];
     List<string> _recipientPreview = [];
 
+    string? _senderId;
+
     protected override async Task OnInitializedAsync()
     {
         _orgs = await ClubSvc.GetOrganizationsAsync();
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        _senderId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     }
 
     async Task OnOrgSelect(int? id)
@@ -151,7 +156,7 @@
             {
                 OrganizationId = _orgId.Value,
                 ClubId = _clubId,
-                SenderUserId = "system",
+                SenderUserId = _senderId ?? "system",
                 Subject = _subject,
                 Body = _body,
                 Type = _type,

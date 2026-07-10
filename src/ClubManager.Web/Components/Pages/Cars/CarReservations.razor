@@ -3,6 +3,7 @@
 @inject CarReservationService CarSvc
 @inject ClubService ClubSvc
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Rezervace aut</PageTitle>
 
@@ -190,9 +191,13 @@ else
     List<ClubManager.Models.CarReservation> _filtered = [];
     ClubManager.Models.CarReservation _newRes = new();
 
+    string? _currentUserId;
+
     protected override async Task OnInitializedAsync()
     {
         _orgs = await ClubSvc.GetOrganizationsAsync();
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        _currentUserId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     }
 
     async Task OnOrgChangedAsync(int? orgId)
@@ -225,6 +230,7 @@ else
         _saving = true;
         _newRes.DateFrom = _dateFrom.Value;
         _newRes.DateTo = _dateTo.Value;
+        _newRes.UserId = _currentUserId ?? "";
         try
         {
             await CarSvc.CreateAsync(_newRes);
