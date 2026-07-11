@@ -1,3 +1,4 @@
+@* AUDIT:PENDING|Kritický|IDOR – přístup k cizí organizaci přes ID *@
 @page "/organizations/{Id:int}/admin"
 @attribute [Authorize(Roles = "Admin,ClubManager")]
 @using ClubManager.Models

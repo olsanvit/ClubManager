@@ -10,12 +10,14 @@ public class ClubService
 
     public ClubService(IDbContextFactory<AppDbContextClubManager> factory) => _factory = factory;
 
+    // AUDIT:OK
     public async Task<List<Organization>> GetOrganizationsAsync()
     {
         await using var db = _factory.CreateDbContext();
         return await db.Organizations.Where(o => o.IsActive).OrderBy(o => o.Name).ToListAsync();
     }
 
+    // AUDIT:OK
     public async Task<List<Club>> GetClubsAsync(int organizationId)
     {
         await using var db = _factory.CreateDbContext();
@@ -25,6 +27,7 @@ public class ClubService
             .ToListAsync();
     }
 
+    // AUDIT:OK
     public async Task<List<OrganizationMember>> GetMembersAsync(int organizationId, int? clubId = null)
     {
         await using var db = _factory.CreateDbContext();
@@ -45,6 +48,7 @@ public class ClubService
             .ToListAsync();
     }
 
+    // AUDIT:CRITICAL|Kritický|Chybí duplicity check – uživatel přidatelný vícekrát do organizace
     public async Task<OrganizationMember> AddMemberAsync(int organizationId, string userId, OrgRole role = OrgRole.Member, string? displayName = null)
     {
         await using var db = _factory.CreateDbContext();
@@ -60,6 +64,7 @@ public class ClubService
         return member;
     }
 
+    // AUDIT:OK
     public async Task AddToClubAsync(int orgMemberId, int clubId)
     {
         await using var db = _factory.CreateDbContext();
@@ -70,6 +75,7 @@ public class ClubService
         }
     }
 
+    // AUDIT:OK
     public async Task LinkFamilyAsync(int organizationId, string parentUserId, string childUserId)
     {
         await using var db = _factory.CreateDbContext();
@@ -80,6 +86,7 @@ public class ClubService
         }
     }
 
+    // AUDIT:PENDING|Nízký|3 round-tripy do DB místo Task.WhenAll
     public async Task<(int Orgs, int Clubs, int Members)> GetSummaryAsync()
     {
         await using var db = _factory.CreateDbContext();

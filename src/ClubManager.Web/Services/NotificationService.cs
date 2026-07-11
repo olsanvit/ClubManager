@@ -39,6 +39,7 @@ public class ClubNotificationService
         _logger = logger;
     }
 
+    // AUDIT:PENDING|Nízký|SmtpClient vytvářen per-call – nelze mockovat v testech
     public async Task<bool> SendEmailAsync(string toEmail, string toName, string subject, string htmlBody)
     {
         if (string.IsNullOrWhiteSpace(_smtp.Host) || string.IsNullOrWhiteSpace(_smtp.User))
@@ -69,6 +70,7 @@ public class ClubNotificationService
         }
     }
 
+    // AUDIT:OK
     public async Task<bool> SendNtfyAsync(string topic, string title, string message, string? tags = null)
     {
         if (string.IsNullOrWhiteSpace(_ntfy.BaseUrl))

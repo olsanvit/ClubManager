@@ -15,6 +15,7 @@ public class MessageService
         _notifier = notifier;
     }
 
+    // AUDIT:FIXED|byl: chyběl Include pro Recipients
     public async Task<List<Message>> GetMessagesAsync(int organizationId, int? clubId = null)
     {
         await using var db = _factory.CreateDbContext();
@@ -28,6 +29,7 @@ public class MessageService
         return await q.OrderByDescending(m => m.CreatedAt).ToListAsync();
     }
 
+    // AUDIT:OK
     public async Task<Message?> GetMessageAsync(int id)
     {
         await using var db = _factory.CreateDbContext();
@@ -38,6 +40,7 @@ public class MessageService
             .FirstOrDefaultAsync(m => m.Id == id);
     }
 
+    // AUDIT:OK
     public async Task<Message> CreateDraftAsync(Message message)
     {
         await using var db = _factory.CreateDbContext();
@@ -48,6 +51,7 @@ public class MessageService
         return message;
     }
 
+    // AUDIT:PENDING|Střední|Multi-step operace bez transakce; DeliverAsync mimo try-catch
     public async Task SendMessageAsync(int messageId, List<string> recipientUserIds)
     {
         await using var db = _factory.CreateDbContext();
@@ -79,6 +83,7 @@ public class MessageService
             await DeliverAsync(messageId);
     }
 
+    // AUDIT:OK
     public async Task<int> GetSentCountAsync()
     {
         await using var db = _factory.CreateDbContext();

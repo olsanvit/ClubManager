@@ -10,6 +10,7 @@ public class CarReservationService
 
     public CarReservationService(IDbContextFactory<AppDbContextClubManager> factory) => _factory = factory;
 
+    // AUDIT:OK
     public async Task<List<Car>> GetCarsAsync(int organizationId)
     {
         await using var db = _factory.CreateDbContext();
@@ -19,6 +20,7 @@ public class CarReservationService
             .ToListAsync();
     }
 
+    // AUDIT:OK
     public async Task<List<CarReservation>> GetReservationsAsync(int organizationId, DateTime? from = null, DateTime? to = null)
     {
         await using var db = _factory.CreateDbContext();
@@ -31,6 +33,7 @@ public class CarReservationService
         return await q.OrderBy(r => r.DateFrom).ToListAsync();
     }
 
+    // AUDIT:OK
     public async Task<bool> IsAvailableAsync(int carId, DateTime dateFrom, DateTime dateTo, int? excludeId = null)
     {
         await using var db = _factory.CreateDbContext();
@@ -45,6 +48,7 @@ public class CarReservationService
         return !await q.AnyAsync();
     }
 
+    // AUDIT:CRITICAL|Kritický|Race condition: check dostupnosti a save bez DB transakce – možná kolize rezervací
     public async Task<CarReservation> CreateAsync(CarReservation reservation)
     {
         await using var db = _factory.CreateDbContext();
@@ -56,6 +60,7 @@ public class CarReservationService
         return reservation;
     }
 
+    // AUDIT:OK
     public async Task UpdateStatusAsync(int reservationId, ReservationStatus status)
     {
         await using var db = _factory.CreateDbContext();
@@ -65,6 +70,7 @@ public class CarReservationService
         await db.SaveChangesAsync();
     }
 
+    // AUDIT:OK
     public async Task CompleteAsync(int reservationId, decimal kmAtEnd)
     {
         await using var db = _factory.CreateDbContext();
