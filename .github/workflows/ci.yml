@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ci_test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 54321:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore src/ClubManager.Tests/ClubManager.Tests.csproj
+
+      - name: Build
+        run: dotnet build src/ClubManager.Tests/ClubManager.Tests.csproj --no-restore --configuration Release
+
+      - name: Test
+        env:
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=54321;Database=ci_test_db;Username=postgres;Password=postgres"
+        run: dotnet test src/ClubManager.Tests/ClubManager.Tests.csproj --no-build --configuration Release --verbosity normal
