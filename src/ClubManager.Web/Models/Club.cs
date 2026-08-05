@@ -17,8 +17,13 @@ public class Club
 
     public bool IsActive { get; set; } = true;
 
+    [MaxLength(16)]
+    public string JoinCode { get; set; } = Guid.NewGuid().ToString("N")[..8].ToUpper();
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<ClubMember> Members { get; set; } = [];
     public ICollection<Message> Messages { get; set; } = [];
+    public ICollection<ClubThread> Threads { get; set; } = [];
+    public ICollection<Invitation> Invitations { get; set; } = [];
 }

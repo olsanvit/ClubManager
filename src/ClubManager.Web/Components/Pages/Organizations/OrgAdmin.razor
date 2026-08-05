@@ -1,4 +1,4 @@
-@* AUDIT:PENDING|Kritický|IDOR – přístup k cizí organizaci přes ID *@
+@* AUDIT:FIXED|byl: chyběla kontrola členství — libovolný ClubManager mohl editovat cizí organizaci *@
 @page "/organizations/{Id:int}/admin"
 @attribute [Authorize(Roles = "Admin,ClubManager")]
 @using ClubManager.Models
@@ -6,12 +6,18 @@
 @inject ClubService ClubSvc
 @inject IDbContextFactory<AppDbContextClubManager> DbFactory
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
 
 <PageTitle>Správa organizace</PageTitle>
 
 @if (_loading)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_forbidden)
+{
+    <MudAlert Severity="MudBlazor.Severity.Error">Přístup odepřen — nejste správce této organizace.</MudAlert>
 }
 else if (_org is null)
 {
@@ -146,6 +152,7 @@ else
     [Parameter] public int Id { get; set; }
 
     private bool _loading = true;
+    private bool _forbidden;
     private string _search = "";
     private Organization? _org;
     private List<OrganizationMember> _members = [];
@@ -161,9 +168,26 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var isAdmin = auth.User.IsInRole("Admin");
+
         await using var db = await DbFactory.CreateDbContextAsync();
         _org = await db.Organizations.FindAsync(Id);
         if (_org is null) { _loading = false; return; }
+
+        if (!isAdmin)
+        {
+            var membership = await db.OrganizationMembers
+                .FirstOrDefaultAsync(m => m.OrganizationId == Id && m.UserId == userId && m.IsActive);
+            if (membership is null || membership.Role < OrgRole.OrgAdmin)
+            {
+                _forbidden = true;
+                _loading = false;
+                return;
+            }
+        }
+
         _members = await db.OrganizationMembers
             .Include(m => m.User)
             .Where(m => m.OrganizationId == Id)

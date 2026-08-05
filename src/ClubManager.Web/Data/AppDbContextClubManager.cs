@@ -19,6 +19,12 @@ public class AppDbContextClubManager : IdentityDbContext<AppUser>
     public DbSet<MessageRecipient> MessageRecipients => Set<MessageRecipient>();
     public DbSet<Car> Cars => Set<Car>();
     public DbSet<CarReservation> CarReservations => Set<CarReservation>();
+    public DbSet<ClubThread> Threads => Set<ClubThread>();
+    public DbSet<ThreadParticipant> ThreadParticipants => Set<ThreadParticipant>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatMessageRead> ChatMessageReads => Set<ChatMessageRead>();
+    public DbSet<Invitation> Invitations => Set<Invitation>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -32,6 +38,7 @@ public class AppDbContextClubManager : IdentityDbContext<AppUser>
         builder.Entity<Club>(e =>
         {
             e.HasIndex(x => new { x.OrganizationId, x.Name }).IsUnique();
+            e.HasIndex(x => x.JoinCode).IsUnique();
         });
 
         builder.Entity<OrganizationMember>(e =>
@@ -60,6 +67,26 @@ public class AppDbContextClubManager : IdentityDbContext<AppUser>
         {
             e.Property(x => x.KmAtStart).HasPrecision(10, 2);
             e.Property(x => x.KmAtEnd).HasPrecision(10, 2);
+        });
+
+        builder.Entity<ThreadParticipant>(e =>
+        {
+            e.HasIndex(x => new { x.ThreadId, x.UserId }).IsUnique();
+        });
+
+        builder.Entity<ChatMessageRead>(e =>
+        {
+            e.HasIndex(x => new { x.MessageId, x.UserId }).IsUnique();
+        });
+
+        builder.Entity<NotificationPreference>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.ClubId }).IsUnique();
+        });
+
+        builder.Entity<Invitation>(e =>
+        {
+            e.HasIndex(x => x.Token).IsUnique();
         });
     }
 }

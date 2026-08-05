@@ -51,10 +51,12 @@ public class MessageService
         return message;
     }
 
-    // AUDIT:PENDING|Střední|Multi-step operace bez transakce; DeliverAsync mimo try-catch
+    // AUDIT:FIXED|byl: multi-step bez transakce + DeliverAsync mimo try-catch
     public async Task SendMessageAsync(int messageId, List<string> recipientUserIds)
     {
         await using var db = _factory.CreateDbContext();
+        await using var tx = await db.Database.BeginTransactionAsync();
+
         var msg = await db.Messages.FindAsync(messageId)
             ?? throw new InvalidOperationException($"Message {messageId} not found");
 
@@ -78,9 +80,13 @@ public class MessageService
         msg.Status = MessageStatus.Sent;
         msg.SentAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
 
         if (msg.SendEmail || msg.SendNtfy)
-            await DeliverAsync(messageId);
+        {
+            try { await DeliverAsync(messageId); }
+            catch { /* doručení selhalo; status příjemců zůstane Pending pro retry */ }
+        }
     }
 
     // AUDIT:OK

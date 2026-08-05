@@ -1,8 +1,9 @@
-@* AUDIT:PENDING|Kritický|IDOR – přístup k cizím zprávám přes ID *@
+@* AUDIT:FIXED|byl: chyběla kontrola – kdokoli mohl číst libovolnou zprávu přes ID *@
 @page "/messages/{Id:int}"
 @attribute [Authorize]
 @inject MessageService MsgSvc
 @inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Detail zprávy</PageTitle>
 
@@ -11,6 +12,10 @@
 @if (_loading)
 {
     <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_forbidden)
+{
+    <MudAlert Severity="MudBlazor.Severity.Error">Přístup odepřen — tato zpráva vám nepatří.</MudAlert>
 }
 else if (_msg is null)
 {
@@ -112,6 +117,7 @@ else
 
     Message? _msg;
     bool _loading = true;
+    bool _forbidden;
 
     readonly List<BreadcrumbItem> _breadcrumbs =
     [
@@ -122,8 +128,22 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var isAdmin = auth.User.IsInRole("Admin");
+
         _msg = await MsgSvc.GetMessageAsync(Id);
         _loading = false;
+
+        if (_msg is null) return;
+
+        if (!isAdmin &&
+            _msg.SenderUserId != userId &&
+            !_msg.Recipients.Any(r => r.UserId == userId))
+        {
+            _msg = null;
+            _forbidden = true;
+        }
     }
 
     static Color TypeColor(MessageType t) => t switch
