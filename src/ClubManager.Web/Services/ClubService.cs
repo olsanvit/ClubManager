@@ -86,13 +86,14 @@ public class ClubService
         }
     }
 
-    // AUDIT:PENDING|Nízký|3 round-tripy do DB místo Task.WhenAll
+    // AUDIT:FIXED|byl: 3 sekvenční round-tripy; nyní paralelní Task.WhenAll
     public async Task<(int Orgs, int Clubs, int Members)> GetSummaryAsync()
     {
         await using var db = _factory.CreateDbContext();
-        var orgs = await db.Organizations.CountAsync(o => o.IsActive);
-        var clubs = await db.Clubs.CountAsync(c => c.IsActive);
-        var members = await db.OrganizationMembers.CountAsync(m => m.IsActive);
-        return (orgs, clubs, members);
+        var orgsTask    = db.Organizations.CountAsync(o => o.IsActive);
+        var clubsTask   = db.Clubs.CountAsync(c => c.IsActive);
+        var membersTask = db.OrganizationMembers.CountAsync(m => m.IsActive);
+        await Task.WhenAll(orgsTask, clubsTask, membersTask);
+        return (await orgsTask, await clubsTask, await membersTask);
     }
 }

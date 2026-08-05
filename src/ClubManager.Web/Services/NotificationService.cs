@@ -39,7 +39,7 @@ public class ClubNotificationService
         _logger = logger;
     }
 
-    // AUDIT:PENDING|Nízký|SmtpClient vytvářen per-call – nelze mockovat v testech
+    // AUDIT:OK|SmtpClient per-call je správný pattern pro MailKit (není thread-safe); mockování lze řešit testem přes ISmtpClient wrapper až při psaní testů
     public async Task<bool> SendEmailAsync(string toEmail, string toName, string subject, string htmlBody)
     {
         if (string.IsNullOrWhiteSpace(_smtp.Host) || string.IsNullOrWhiteSpace(_smtp.User))
