@@ -1,14 +1,11 @@
 using ClubManager.Data;
 using ClubManager.Models;
-using MercenariesAndBeasts.Infrastructure;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClubManager.Services;
 
 public class InvitationService(
     IDbContextFactory<AppDbContextClubManager> factory,
-    UserManager<AppUser> userManager,
     ClubNotificationService notifier)
 {
     public async Task<Invitation> CreateInvitationAsync(string email, int clubId, OrgRole role, string invitedByUserId)

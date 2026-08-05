@@ -129,13 +129,14 @@ else
         _club = await Db.Clubs.Include(c => c.Organization).FirstOrDefaultAsync(c => c.Id == ClubId);
         if (_club is null) return;
 
-        _members = await (
+        var rawMembers = await (
             from cm in Db.ClubMembers
             join om in Db.OrganizationMembers on cm.OrganizationMemberId equals om.Id
             join u in Db.Users on om.UserId equals u.Id
             where cm.ClubId == ClubId && cm.IsActive
-            select new MemberRow(u.UserName, u.Email, om.Role, cm.JoinedAt)
+            select new { u.UserName, u.Email, om.Role, cm.JoinedAt }
         ).ToListAsync();
+        _members = rawMembers.Select(x => new MemberRow(x.UserName, x.Email, x.Role, x.JoinedAt)).ToList();
 
         _pendingInvitations = await Db.Invitations
             .Where(i => i.ClubId == ClubId && i.AcceptedAt == null && i.ExpiresAt > DateTime.UtcNow)
