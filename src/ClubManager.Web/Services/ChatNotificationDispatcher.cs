@@ -1,6 +1,7 @@
 using ClubManager.Data;
 using ClubManager.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Channels;
 
 namespace ClubManager.Services;
@@ -9,7 +10,7 @@ public record ChatNotificationJob(int ThreadId, int MessageId);
 
 public class ChatNotificationDispatcher(
     IDbContextFactory<AppDbContextClubManager> factory,
-    ClubNotificationService notifier,
+    IServiceScopeFactory scopeFactory,
     ILogger<ChatNotificationDispatcher> logger) : BackgroundService
 {
     private readonly Channel<ChatNotificationJob> _channel = Channel.CreateUnbounded<ChatNotificationJob>();
@@ -27,6 +28,8 @@ public class ChatNotificationDispatcher(
 
     private async Task ProcessAsync(ChatNotificationJob job, CancellationToken ct)
     {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var notifier = scope.ServiceProvider.GetRequiredService<ClubNotificationService>();
         await using var db = factory.CreateDbContext();
         var msg = await db.ChatMessages
             .Include(m => m.Thread).ThenInclude(t => t.Club)
