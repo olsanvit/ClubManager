@@ -48,15 +48,26 @@ public class CarReservationService
         return !await q.AnyAsync();
     }
 
-    // AUDIT:CRITICAL|Kritický|Race condition: check dostupnosti a save bez DB transakce – možná kolize rezervací
+    // AUDIT:FIXED|byl: race condition — check a insert ve dvou kontextech bez transakce; nyní Serializable tx
     public async Task<CarReservation> CreateAsync(CarReservation reservation)
     {
         await using var db = _factory.CreateDbContext();
-        if (!await IsAvailableAsync(reservation.CarId, reservation.DateFrom, reservation.DateTo))
+        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+
+        var conflict = await db.CarReservations.AnyAsync(r =>
+            r.CarId == reservation.CarId &&
+            r.Status != ReservationStatus.Rejected &&
+            r.Status != ReservationStatus.Cancelled &&
+            r.DateFrom < reservation.DateTo &&
+            r.DateTo > reservation.DateFrom);
+
+        if (conflict)
             throw new InvalidOperationException("Auto je v tomto termínu již rezervováno.");
+
         reservation.CreatedAt = DateTime.UtcNow;
         db.CarReservations.Add(reservation);
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         return reservation;
     }
 

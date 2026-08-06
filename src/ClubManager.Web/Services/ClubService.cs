@@ -48,16 +48,32 @@ public class ClubService
             .ToListAsync();
     }
 
-    // AUDIT:CRITICAL|Kritický|Chybí duplicity check – uživatel přidatelný vícekrát do organizace
+    // AUDIT:FIXED|byl: chybí duplicity check; nyní idempotentní — reaktivuje soft-deleted, jinak vrátí existující
     public async Task<OrganizationMember> AddMemberAsync(int organizationId, string userId, OrgRole role = OrgRole.Member, string? displayName = null)
     {
         await using var db = _factory.CreateDbContext();
+
+        var existing = await db.OrganizationMembers
+            .FirstOrDefaultAsync(m => m.OrganizationId == organizationId && m.UserId == userId);
+
+        if (existing is not null)
+        {
+            if (!existing.IsActive)
+            {
+                existing.IsActive    = true;
+                existing.Role        = role;
+                if (displayName is not null) existing.DisplayName = displayName;
+                await db.SaveChangesAsync();
+            }
+            return existing;
+        }
+
         var member = new OrganizationMember
         {
             OrganizationId = organizationId,
-            UserId = userId,
-            Role = role,
-            DisplayName = displayName
+            UserId         = userId,
+            Role           = role,
+            DisplayName    = displayName
         };
         db.OrganizationMembers.Add(member);
         await db.SaveChangesAsync();
