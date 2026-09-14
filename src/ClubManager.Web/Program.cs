@@ -80,8 +80,7 @@ var dsb = new NpgsqlDataSourceBuilder(cs);
 dsb.EnableDynamicJson();
 var dataSource = dsb.Build();
 
-builder.Services.AddMabDbContext<AppDbContextClubManager>(dataSource, configure: opt =>
-    opt.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+builder.Services.AddMabDbContext<AppDbContextClubManager>(dataSource);
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 builder.Services.AddMabAuth<AppDbContextClubManager>(builder.Configuration);
@@ -198,7 +197,7 @@ try
     await db.Database.MigrateAsync();
     await SeedAsync(userManager, roleManager);
 }
-catch (Exception ex) { Log.Warning(ex, "DB migration/seed skipped"); }
+catch (Exception ex) { Log.Error(ex, "DB migration/seed failed"); }
 
 app.Lifetime.ApplicationStopping.Register(() => Log.Warning("Application stopping — flushing logs..."));
 

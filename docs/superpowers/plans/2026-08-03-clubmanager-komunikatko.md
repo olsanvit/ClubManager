@@ -20,7 +20,7 @@
 |---|---|---|
 | 1 Scaffold | ✅ | `ClubManager.slnx`, bez projektu `ClubManager.Domain`, testy v `src/ClubManager.Tests` (není ve slnx) |
 | 2 Domain | ✅ jinak | entity v `ClubManager.Web/Models`, int ID, bez rozhraní |
-| 3 DbContext + migrace | ⚠️ částečně | migrace `InitialCreate` **neobsahuje tabulky Komunikátka** → P0 #1 |
+| 3 DbContext + migrace | ✅ | `InitialCreate` + `AddKomunikatko` (tabulky Komunikátka, `Clubs.JoinCode`) |
 | 4 Program.cs | ✅ | `AddMabDbContext` / `AddMabAuth` ze SharedServices, `/health` |
 | 5 Auth stránky | ✅ | `/login`, `/register` ze SharedServices; `AcceptInvite`, `JoinByCode` vlastní |
 | 6 InvitationService | ⚠️ bez testů | relativní odkaz v emailu → P1 #8 |
@@ -29,7 +29,7 @@
 | 9 Notifikace | ⚠️ částečně | `ChatNotificationDispatcher` jen email, `MinPriority` ignorováno, bez testů |
 | 10 Messaging UI | ⚠️ částečně | `/chat` místo `/messages`; nejde vytvořit vlákno, bez nepřečtených |
 | 11 Clubs + Members | ✅ | chybí kontrola rolí → P1 #5 |
-| 12 Deploy | ❌ | blokováno P0 #1–3 a výpadkem QNAP (2026-09-14) |
+| 12 Deploy | ❌ | blokováno P0 #2–3 a výpadkem QNAP (2026-09-14) |
 
 ### Plán → skutečný kód
 
@@ -61,7 +61,7 @@
 ### Backlog
 
 **P0 — blokery**
-1. **Chybí migrace Komunikátka.** Tabulky `Threads`, `ThreadParticipants`, `ChatMessages`, `ChatMessageReads`, `Invitations`, `NotificationPreferences` a sloupec `Clubs.JoinCode` (+ unikátní index) nejsou v `InitialCreate` ani ve snapshotu. `Program.cs` potlačuje `PendingModelChangesWarning` a výjimku z `MigrateAsync` jen zaloguje → `/chat`, pozvánky i `/join` na produkci spadnou. Vytvořit migraci `AddKomunikatko` a potlačení warningu zrušit.
+1. ✅ **Migrace Komunikátka** (2026-09-14) — `20260914160303_AddKomunikatko`: 6 tabulek, `Clubs.JoinCode` + unikátní index, backfill kódů pro existující kluby. Potlačení `PendingModelChangesWarning` zrušeno, chyba migrace se loguje jako Error. Ověřeno na čisté PostgreSQL (Up se 2 existujícími kluby, Down, žádné pending změny). **Na produkci zatím neaplikováno** — proběhne při dalším deployi (`MigrateAsync` při startu).
 2. **Heslo admin účtu v kódu.** Seed v `Program.cs` má heslo natvrdo — přesunout do konfigurace/env a heslo účtu změnit.
 3. **Rotace hesla DB role `clubmanager_usr`** (bylo v gitu do `acf7343`) — provádí uživatel.
 
@@ -534,7 +534,7 @@ Expected: Build succeeded, 0 errors.
 
 ## Task 3: AppUser + AppDbContext + EF Migration
 
-> **Stav:** ⚠️ částečně — `AppDbContextClubManager` + `InitialCreate` (`0c3ca7f`), ale migrace vznikla před Komunikátkem a jeho tabulky neobsahuje (P0 #1).
+> **Stav:** ✅ hotovo — `AppDbContextClubManager` + `InitialCreate` (`0c3ca7f`) + `AddKomunikatko` (2026-09-14, doplňuje tabulky Komunikátka).
 
 **Files:**
 - Create: `src/ClubManager.Web/AppUser.cs`
@@ -628,7 +628,7 @@ public sealed class AppDbContextDesignTimeFactory : IDesignTimeDbContextFactory<
 }
 ```
 
-- [ ] **Krok 4: Vytvoř první migraci** — _`InitialCreate` existuje, ale bez tabulek Komunikátka → P0 #1_
+- [x] **Krok 4: Vytvoř první migraci** — _`InitialCreate` + `AddKomunikatko` (tabulky Komunikátka)_
 
 Potřebuješ lokální PostgreSQL nebo Docker:
 ```bash
@@ -2138,7 +2138,7 @@ git push origin main
 
 ## Task 12: Deploy setup na QNAP
 
-> **Stav:** ❌ neprovedeno. Realita se liší od kroků: app jde přímo na `pg16:5432` (ne pgbouncer), deploy `~/deploy-to-qnap.sh clubmanager prod` → port 5024. Blokováno P0 #1–3 a výpadkem QNAP.
+> **Stav:** ❌ neprovedeno. Realita se liší od kroků: app jde přímo na `pg16:5432` (ne pgbouncer), deploy `~/deploy-to-qnap.sh clubmanager prod` → port 5024. Blokováno P0 #2–3 a výpadkem QNAP.
 
 **Files:**
 - Verify: `~/deploy-to-qnap.sh` (klubmanager sekce již existuje)
