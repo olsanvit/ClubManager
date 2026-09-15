@@ -2,7 +2,6 @@
 @page "/"
 @attribute [Authorize]
 @inject ClubService ClubSvc
-@inject MessageService MsgSvc
 
 <PageTitle>ClubManager — Přehled</PageTitle>
 
@@ -33,12 +32,6 @@ else
                 <MudText Typo="Typo.h4">@_members</MudText>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Odeslané zprávy</MudText>
-                <MudText Typo="Typo.h4">@_sentMessages</MudText>
-            </MudPaper>
-        </MudItem>
     </MudGrid>
 
     <MudText Typo="Typo.h6" GutterBottom="true">Rychlé akce</MudText>
@@ -61,32 +54,16 @@ else
                 Členové
             </MudButton>
         </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudButton Href="/messages/send" FullWidth="true" Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.Send" Color="Color.Primary" Size="Size.Large">
-                Nová zpráva
-            </MudButton>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudButton Href="/messages" FullWidth="true" Variant="Variant.Outlined"
-                       StartIcon="@Icons.Material.Filled.Inbox" Color="Color.Default" Size="Size.Large">
-                Zprávy
-            </MudButton>
-        </MudItem>
     </MudGrid>
 }
 
 @code {
     bool _loading = true;
-    int _orgs, _clubs, _members, _sentMessages;
+    int _orgs, _clubs, _members;
 
     protected override async Task OnInitializedAsync()
     {
-        var statsTask = ClubSvc.GetSummaryAsync();
-        var sentTask = MsgSvc.GetSentCountAsync();
-        await Task.WhenAll(statsTask, sentTask);
-        (_orgs, _clubs, _members) = statsTask.Result;
-        _sentMessages = sentTask.Result;
+        (_orgs, _clubs, _members) = await ClubSvc.GetSummaryAsync();
         _loading = false;
     }
 }
