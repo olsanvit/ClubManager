@@ -1,5 +1,4 @@
 using ClubManager.Components;
-using ClubManager.Hubs;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ClubManager.Data;
@@ -64,13 +63,7 @@ builder.Services.AddScoped<ClubNotificationService>();
 
 // ── Domain services ───────────────────────────────────────────────────────────
 builder.Services.AddScoped<ClubService>();
-builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<InvitationService>();
-builder.Services.AddSingleton<ChatNotificationDispatcher>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<ChatNotificationDispatcher>());
-
-// ── SignalR ───────────────────────────────────────────────────────────────────
-builder.Services.AddSignalR();
 
 // ── DB ────────────────────────────────────────────────────────────────────────
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -125,8 +118,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(
         typeof(MercenariesAndBeasts.Infrastructure.Components.Account.Login).Assembly);
-
-app.MapHub<MessagingHub>("/hubs/messaging");
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 app.MapPost("/Identity/Account/ExternalLogin", async (HttpContext http, SignInManager<AppUser> signInManager) =>
