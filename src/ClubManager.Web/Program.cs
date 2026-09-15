@@ -65,7 +65,6 @@ builder.Services.AddScoped<ClubNotificationService>();
 // ── Domain services ───────────────────────────────────────────────────────────
 builder.Services.AddScoped<ClubService>();
 builder.Services.AddScoped<MessageService>();
-builder.Services.AddScoped<CarReservationService>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<InvitationService>();
 builder.Services.AddSingleton<ChatNotificationDispatcher>();
