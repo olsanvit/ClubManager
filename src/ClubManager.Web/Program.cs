@@ -195,7 +195,7 @@ try
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await db.Database.MigrateAsync();
-    await SeedAsync(userManager, roleManager);
+    await SeedAsync(userManager, roleManager, app.Configuration["Seed:AdminPassword"]);
 }
 catch (Exception ex) { Log.Error(ex, "DB migration/seed failed"); }
 
@@ -206,7 +206,7 @@ catch (Exception ex) { Log.Fatal(ex, "Host terminated unexpectedly"); }
 finally { Log.CloseAndFlush(); }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-static async Task SeedAsync(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager)
+static async Task SeedAsync(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, string? password)
 {
     foreach (var r in new[] { "Admin", "Moderator", "LoginUser", "ClubManager" })
         if (!await roleManager.RoleExistsAsync(r))
@@ -215,6 +215,12 @@ static async Task SeedAsync(UserManager<AppUser> userManager, RoleManager<Identi
     var user = await userManager.FindByEmailAsync("olsanskyvitek@gmail.com");
     if (user is null)
     {
+        // Existující účet heslo nepotřebuje; nový bez nakonfigurovaného hesla radši nezakládat než se známým.
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            Log.Warning("Admin účet neexistuje a Seed:AdminPassword není nastavené — účet se nezakládá");
+            return;
+        }
         user = new AppUser
         {
             UserName = "vitek",
@@ -224,7 +230,8 @@ static async Task SeedAsync(UserManager<AppUser> userManager, RoleManager<Identi
             IsWhitelisted = true,
             MustChangePassword = true
         };
-        var result = await userManager.CreateAsync(user, "Vitek575");
+        // Heslo jen z konfigurace (env Seed__AdminPassword) — ve veřejném repu by bylo čitelné komukoli.
+        var result = await userManager.CreateAsync(user, password);
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
     }

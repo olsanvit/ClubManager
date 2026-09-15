@@ -696,7 +696,7 @@ git push origin main
 ```json
 {
   "ConnectionStrings": {
-    "ClubManagerDb": "Host=192.168.60.221;Port=5433;Database=ClubManager;Username=clubmanager_usr;Password=CHANGE_ME;Pooling=true;Timeout=15;Command Timeout=30;Ssl Mode=Disable"
+    "ClubManagerDb": "Host=192.168.60.221;Port=5433;Database=ClubManager;Username=clubmanager_usr;Password=${CLUBMANAGER_DB_PASSWORD};Pooling=true;Timeout=15;Command Timeout=30;Ssl Mode=Disable"
   },
   "PathBase": "/clubmanager",
   "Logging": {
