@@ -55,15 +55,8 @@ builder.Services.AddSimpleLocalization();
 builder.Services.AddRadzenComponents();
 builder.Services.AddGlobalErrorNotifications();
 
-// ── Notification config ───────────────────────────────────────────────────────
-builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
-builder.Services.Configure<NtfySettings>(builder.Configuration.GetSection("Ntfy"));
-builder.Services.AddHttpClient<ClubNotificationService>();
-builder.Services.AddScoped<ClubNotificationService>();
-
 // ── Domain services ───────────────────────────────────────────────────────────
 builder.Services.AddScoped<ClubService>();
-builder.Services.AddScoped<InvitationService>();
 
 // ── DB ────────────────────────────────────────────────────────────────────────
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
