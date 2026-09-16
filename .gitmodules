@@ -1,3 +1,0 @@
-[submodule "src/SharedServices"]
-	path = src/SharedServices
-	url = https://github.com/olsanvit/SharedServices.git
